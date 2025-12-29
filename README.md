@@ -1,5 +1,3 @@
-# Kubernetes-Monitoring-Stack
-
 # Kubernetes Monitoring Stack (Kubernetes + Prometheus + Grafana)
 
 This repository documents the **end-to-end setup of a Kubernetes cluster on RHEL 9 using kubeadm**, followed by deployment of a **production-grade monitoring stack (Prometheus, Grafana, Alertmanager)** using **Helm**.
