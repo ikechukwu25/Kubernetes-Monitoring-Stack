@@ -81,7 +81,6 @@ Expected output:
 
 * Desired = Current = Ready
 
-📸
 
 ```
 kubectl get daemonset -n kube-system
