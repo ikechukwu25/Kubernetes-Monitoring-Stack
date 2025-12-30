@@ -118,7 +118,64 @@ Expected pods include:
 
 ---
 
+
 ## Access Grafana
+
+
+### Ingress Controller Prerequisite
+
+Ensure an Ingress controller (for example, NGINX Ingress Controller) is already deployed in the cluster.
+
+Verify:
+
+```
+kubectl get pods -n ingress-nginx
+kubectl get svc -n ingress-nginx
+Create Grafana Ingress Resource
+```
+
+Create an Ingress manifest for Grafana:
+
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-grafana
+            port:
+              number: 80
+```
+
+Apply:
+
+```
+kubectl apply -f grafana-ingress.yaml
+Verify Ingress
+kubectl get ingress -n monitoring
+```
+
+Retrieve the ingress IP:
+
+```
+kubectl get ingress grafana-ingress -n monitoring
+```
+
+Access Grafana via browser:
+```
+http://<INGRESS-IP>
+```
 
 ### Retrieve Grafana admin password
 
@@ -127,7 +184,11 @@ kubectl get secret -n monitoring monitoring-grafana \
   -o jsonpath="{.data.admin-password}" | base64 --decode
 ```
 
-### Port-forward Grafana service
+
+
+## Access Prometheus (Optional – Port Forward)
+
+Port-forwarding may be used for troubleshooting or local access if the Ingress is unavailable.
 
 ```
 kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
@@ -148,23 +209,7 @@ Login:
 
 
 
-
 <img width="1363" height="571" alt="image" src="https://github.com/user-attachments/assets/88c2b490-841a-4850-b353-d91f3d1d335d" />
-
----
-
-## Access Prometheus (Optional)
-
-```bash
-kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090
-```
-
-Prometheus UI:
-
-```
-http://localhost:9090
-```
-
 ---
 
 ## Validation Commands (Crucial)
