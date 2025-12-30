@@ -34,8 +34,10 @@ All steps in this document are executed on **ALL nodes unless stated otherwise**
 
 ### 2.1 Update System
 
-`sudo dnf update -y`
-`sudo reboot`
+```
+sudo dnf update -y
+sudo reboot
+```
 
 `cat /etc/redhat-release`
 
@@ -44,8 +46,10 @@ All steps in this document are executed on **ALL nodes unless stated otherwise**
 
 ### 2.2 Disable Swap (Required by Kubernetes)
 
-`sudo swapoff -a`
-`sudo sed -i '/swap/d' /etc/fstab`
+```
+sudo swapoff -a
+sudo sed -i '/swap/d' /etc/fstab
+```
 
 📸
 
@@ -56,9 +60,10 @@ All steps in this document are executed on **ALL nodes unless stated otherwise**
 
 ### 2.3 Load Required Kernel Modules
 
-`sudo modprobe overlay`
-`sudo modprobe br_netfilter`
-
+```
+sudo modprobe overlay
+sudo modprobe br_netfilter
+```
 
 Persist module loading:
 
@@ -102,14 +107,18 @@ EOF
 
 This guide uses the **RHEL-supported containerd package**.
 
-`sudo dnf module enable container-tools:4.0 -y`
-`sudo dnf install -y containerd`
-`sudo systemctl enable --now containerd`
+```
+sudo dnf module enable container-tools:4.0 -y
+sudo dnf install -y containerd
+sudo systemctl enable --now containerd
+```
 
 ### 3.1 Configure containerd to use systemd cgroups
 
-`sudo mkdir -p /etc/containerd`
-`containerd config default | sudo tee /etc/containerd/config.toml`
+```
+sudo mkdir -p /etc/containerd
+containerd config default | sudo tee /etc/containerd/config.toml
+```
 
 
 Edit `/etc/containerd/config.toml` and ensure the following is set:
@@ -148,13 +157,17 @@ EOF
 
 ### 4.2 Install kubeadm, kubelet, kubectl
 
-`sudo dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`
-`sudo systemctl enable --now kubelet`
+```
+sudo dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+sudo systemctl enable --now kubelet
+```
 
 📸
 
-`kubeadm version`
-`kubectl version --client`
+```
+kubeadm version
+kubectl version --client
+```
 
 
 ---
@@ -162,8 +175,10 @@ EOF
 ### 4.3 Lock Kubernetes Package Versions
 
 
-`sudo dnf install -y python3-dnf-plugin-versionlock`
-`sudo dnf versionlock add kubelet kubeadm kubectl`
+```
+sudo dnf install -y python3-dnf-plugin-versionlock
+sudo dnf versionlock add kubelet kubeadm kubectl
+```
 
 
 ---
@@ -188,10 +203,11 @@ sudo kubeadm init \
 
 ### 5.1 Configure kubectl Access
 
-
-`mkdir -p $HOME/.kube`
-`sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config`
-`sudo chown $(id -u):$(id -g) $HOME/.kube/config`
+```
+mkdir -p $HOME/.kube
+sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
 
 
 📸
@@ -244,14 +260,17 @@ If nodes are `NotReady`, proceed to install the CNI plugin (Calico) in the next 
 
 ## 8. Test Basic Workload (Optional)
 
-
-`kubectl create deployment nginx --image=nginx`
-`kubectl get pods -o wide`
+```
+kubectl create deployment nginx --image=nginx
+kubectl get pods -o wide
+```
 
 Expose service:
 
-`kubectl expose deployment nginx --port=80 --type=NodePort`
-`kubectl get svc nginx`
+```
+kubectl expose deployment nginx --port=80 --type=NodePort
+kubectl get svc nginx
+```
 
 📸
 
