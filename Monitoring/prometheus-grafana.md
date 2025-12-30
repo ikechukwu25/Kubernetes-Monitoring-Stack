@@ -212,13 +212,16 @@ Login:
 <img width="1363" height="571" alt="image" src="https://github.com/user-attachments/assets/88c2b490-841a-4850-b353-d91f3d1d335d" />
 ---
 
-## Validation Commands (Crucial)
+## Validation Commands 
 
 ```
 kubectl get svc -n monitoring
 kubectl get daemonsets -n monitoring
 kubectl get deployments -n monitoring
 ```
+
+<img width="568" height="92" alt="image" src="https://github.com/user-attachments/assets/11b3df77-475a-4fa9-9ec3-f1c99c7ca8de" />
+
 
 Check Node Exporter:
 
