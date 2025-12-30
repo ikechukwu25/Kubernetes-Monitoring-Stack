@@ -51,10 +51,9 @@ sudo swapoff -a
 sudo sed -i '/swap/d' /etc/fstab
 ```
 
-📸
-
-
 `free -h`
+
+<img width="622" height="70" alt="image" src="https://github.com/user-attachments/assets/cd65a122-0cf6-4535-a125-26132b2cf499" />
 
 ---
 
@@ -75,9 +74,6 @@ br_netfilter
 EOF
 ```
 
-📸
-
-
 `lsmod | egrep 'overlay|br_netfilter`
 
 
@@ -94,9 +90,6 @@ EOF
 ```
 
 `sudo sysctl --system`
-
-
-📸
 
 `sysctl net.ipv4.ip_forward`
 
@@ -132,9 +125,9 @@ Restart containerd:
 
 `sudo systemctl restart containerd`
 
-📸
-
 `systemctl status containerd`
+
+<img width="1268" height="568" alt="image" src="https://github.com/user-attachments/assets/497ec4cf-ddae-489a-991a-df1ce9017fd7" />
 
 ---
 
@@ -168,7 +161,9 @@ sudo systemctl enable --now kubelet
 kubeadm version
 kubectl version --client
 ```
+<img width="1273" height="55" alt="image" src="https://github.com/user-attachments/assets/3402cee4-f7f3-4f4c-9534-a44951c59c4e" />
 
+<img width="337" height="54" alt="image" src="https://github.com/user-attachments/assets/61f7907f-df6c-4ffc-b703-73e4e0f38312" />
 
 ---
 
@@ -210,10 +205,9 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
 
-📸
-
-
 `kubectl get nodes`
+
+<img width="403" height="90" alt="image" src="https://github.com/user-attachments/assets/1f2ca954-a282-4102-902d-0444b6862390" />
 
 
 ---
@@ -237,6 +231,8 @@ sudo kubeadm join <master-ip>:6443 --token <token> \
 
 
 `kubectl get nodes -o wide`
+
+<img width="1274" height="153" alt="image" src="https://github.com/user-attachments/assets/32c737dc-8e81-4be1-bf43-2da8d8aa9ec3" />
 
 ---
 
@@ -272,7 +268,6 @@ kubectl expose deployment nginx --port=80 --type=NodePort
 kubectl get svc nginx
 ```
 
-📸
 
 `kubectl get pods -o wide`
 
