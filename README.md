@@ -38,17 +38,15 @@ Monitoring stack deployed into a dedicated namespace:
 
 ## Repository Structure
 
-```text
+```
 .
 ├── README.md
 ├── kubernetes/
 │   ├── kubeadm-installation.md
 │   └── calico-networking.md
 ├── monitoring/
-│   ├── prometheus-grafana.md
-│   └── dashboards.md
-└── screenshots/
-    └── README.md
+    ├── prometheus-grafana.md
+    └── dashboards.md
 ```
 
 ---
@@ -64,21 +62,9 @@ Monitoring stack deployed into a dedicated namespace:
 7. Deploy Prometheus & Grafana using Helm
 8. Visualize cluster metrics in Grafana
 
-Each step is documented with **verification commands** and **screenshots**.
 
 ---
 
-## Verification Screenshots
-
-Screenshots are stored in the `screenshots/` directory and include:
-
-* Kubernetes nodes ready
-* Calico networking running
-* Monitoring stack pods
-* Grafana UI access
-* Kubernetes dashboards
-
----
 
 ## Why This Project
 
