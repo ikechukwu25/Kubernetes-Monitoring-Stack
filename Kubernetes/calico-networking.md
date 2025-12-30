@@ -162,9 +162,8 @@ kubectl logs -n kube-system -l k8s-app=calico-node
 
 <img width="1274" height="465" alt="image" src="https://github.com/user-attachments/assets/bbc94d14-e3f5-40b3-bfc5-57a83b03c341" />
 
-
-
-
+</br>
+</br>
 
 Check events:
 
