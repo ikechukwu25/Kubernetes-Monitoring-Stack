@@ -73,7 +73,7 @@ EOF
 📸
 
 
-`lsmod | egrep 'overlay|br_netfilter'
+`lsmod | egrep 'overlay|br_netfilter`
 
 
 ---
@@ -117,7 +117,7 @@ Edit `/etc/containerd/config.toml` and ensure the following is set:
 ```
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
 SystemdCgroup = true
-
+```
 
 Restart containerd:
 
@@ -142,7 +142,7 @@ enabled=1
 gpgcheck=1
 gpgkey=https://pkgs.k8s.io/core:/stable:/v1.34/rpm/repodata/repomd.xml.key
 EOF
-
+```
 
 ---
 
@@ -182,7 +182,7 @@ Initialize the cluster:
 sudo kubeadm init \
   --pod-network-cidr=192.168.0.0/16 \
   --kubernetes-version=1.34.0
-
+```
 
 ---
 
@@ -215,13 +215,12 @@ Run the output command on **each worker node**:
 ```
 sudo kubeadm join <master-ip>:6443 --token <token> \
   --discovery-token-ca-cert-hash sha256:<hash>
-
+```
 
 📸
 
 
 `kubectl get nodes -o wide`
-
 
 ---
 
@@ -237,7 +236,7 @@ NAME            STATUS   ROLES           VERSION
 k8s-master      Ready    control-plane   v1.34.0
 k8s-worker-01   Ready    <none>          v1.34.0
 k8s-worker-02   Ready    <none>          v1.34.0
-
+```
 
 If nodes are `NotReady`, proceed to install the CNI plugin (Calico) in the next chapter.
 
