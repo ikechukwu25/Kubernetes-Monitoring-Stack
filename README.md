@@ -75,14 +75,6 @@ This project intentionally avoids managed Kubernetes services to demonstrate:
 * Enterprise‑aligned monitoring practices
 * Reproducible infrastructure documentation
 
----
-
-## Next Improvements
-
-* Ingress for Grafana
-* Persistent storage for Prometheus
-* Alertmanager notification routing
-* Offline / air‑gapped image registry support
 
 ---
 
