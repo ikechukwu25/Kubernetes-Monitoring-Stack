@@ -155,15 +155,13 @@ sudo dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 sudo systemctl enable --now kubelet
 ```
 
-📸
 
 ```
 kubeadm version
 kubectl version --client
 ```
-<img width="1273" height="55" alt="image" src="https://github.com/user-attachments/assets/3402cee4-f7f3-4f4c-9534-a44951c59c4e" />
+<img width="1264" height="103" alt="image" src="https://github.com/user-attachments/assets/480265d4-bc81-4bd2-808e-5ca6a79200a5" />
 
-<img width="337" height="54" alt="image" src="https://github.com/user-attachments/assets/61f7907f-df6c-4ffc-b703-73e4e0f38312" />
 
 ---
 
@@ -226,8 +224,6 @@ Run the output command on **each worker node**:
 sudo kubeadm join <master-ip>:6443 --token <token> \
   --discovery-token-ca-cert-hash sha256:<hash>
 ```
-
-📸
 
 
 `kubectl get nodes -o wide`
