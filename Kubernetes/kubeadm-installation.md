@@ -38,8 +38,9 @@ All steps in this document are executed on **ALL nodes unless stated otherwise**
 sudo dnf update -y
 sudo reboot
 ```
-
-`cat /etc/redhat-release`
+```
+cat /etc/redhat-release
+```
 
 
 ---
@@ -74,7 +75,9 @@ br_netfilter
 EOF
 ```
 
-`lsmod | egrep 'overlay|br_netfilter`
+```
+lsmod | egrep 'overlay|br_netfilter
+```
 
 
 ---
@@ -89,9 +92,13 @@ net.ipv4.ip_forward = 1
 EOF
 ```
 
-`sudo sysctl --system`
+```
+sudo sysctl --system
+```
 
-`sysctl net.ipv4.ip_forward`
+```
+sysctl net.ipv4.ip_forward
+```
 
 
 ---
