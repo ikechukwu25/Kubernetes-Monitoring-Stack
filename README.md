@@ -6,7 +6,7 @@ This project is designed as:
 
 * A **hands-on infrastructure lab**
 * A **repeatable reference** for on‑prem / VM‑based Kubernetes
-* A **portfolio-ready DevOps / SysAdmin project**
+
 
 ---
 
