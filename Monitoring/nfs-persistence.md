@@ -1,6 +1,6 @@
 # NFS Persistence (Grafana + Prometheus) — Kubernetes Monitoring Stack
 
-This document explains how I added **NFS-backed persistence** to the monitoring stack in this repository (kube-prometheus-stack: Prometheus, Grafana, Alertmanager) running on a kubeadm-built Kubernetes cluster (RHEL 9).
+This document explains how I added **NFS-backed persistence** to the monitoring stack running on a kubeadm-built Kubernetes cluster (RHEL 9).
 
 > [ image ]  
 > *(Screenshot idea: Grafana + Prometheus running in the `monitoring` namespace)*
@@ -65,9 +65,8 @@ sudo mkdir -p /nfs/k8s/prometheus
 > [ image ]
 > *(Screenshot idea: ls -lah /nfs/k8s showing grafana/ and prometheus/)*
 
-## Step 2 — Export the NFS share
-
-### 1. Edit /etc/exports and export the base folder (or export subfolders if preferred).
+### 2. — Export the NFS share
+- Edit /etc/exports and export the base folder (or export subfolders if preferred).
 
 Example:
 
@@ -75,7 +74,7 @@ Example:
 /nfs/k8s 10.100.24.0/24(rw,sync,no_subtree_check)
 ```
 
-### 2. Apply exports:
+- Apply exports:
 ```
 sudo exportfs -ra
 sudo exportfs -v
@@ -86,7 +85,6 @@ sudo exportfs -v
 
 
 ### 3. (Important) Permissions for Prometheus
-
 Prometheus runs as a non-root user in many kube-prometheus-stack deployments. In my case, it ran as:
 
 uid=1000
@@ -114,3 +112,355 @@ sudo find /nfs/k8s/prometheus -type f -exec chmod 0664 {} \;
 
 >[ image ]
 >(Screenshot idea: ls -ld /nfs/k8s/prometheus showing owner/group and perms)
+
+## Step 2 — Decide how storage will be provisioned
+
+There are two common approaches:
+
+Dynamic provisioning using an NFS provisioner + StorageClass
+
+Static provisioning (manual PV + PVC) using nfs volumes
+
+For this project, I used static PVs (manual PV definition pointing to NFS paths).
+
+This is simple, predictable, and perfect for a lab / on-prem environment.
+
+
+## Step 3 — Grafana persistence (PV + PVC)
+
+Grafana stores:
+
+- `grafana.db` (dashboards, users, orgs)
+
+- plugins directory
+
+We persist these by mounting NFS at:
+
+- Pod mountPath: `/var/lib/grafana`
+
+- NFS path: `/nfs/k8s/grafana`
+
+### 3.1 Create Grafana PV
+
+Create `grafana-nfs-pv.yaml`:
+
+```
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-nfs-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-manual
+  nfs:
+    server: 10.100.25.93
+    path: /nfs/k8s/grafana
+```
+
+Apply:
+```
+kubectl apply -f grafana-nfs-pv.yaml
+```
+
+### 3.2 Create Grafana PVC
+
+Create `grafana-nfs-pvc.yaml`:
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-nfs-pvc
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: nfs-manual
+  volumeName: grafana-nfs-pv
+```
+Apply:
+```
+kubectl apply -f grafana-nfs-pvc.yaml
+```
+
+Verify:
+```
+kubectl get pv | grep grafana
+kubectl get pvc -n monitoring | grep grafana
+```
+[ image ]
+(Screenshot idea: kubectl get pv + kubectl get pvc -n monitoring showing Grafana PV/PVC Bound)
+
+
+3.3 Attach PVC to Grafana (Helm values)
+
+If you deployed `kube-prometheus-stack` via Helm, Grafana persistence is usually configured in `values.yaml`.
+
+Example values snippet (conceptual):
+```
+grafana:
+  enabled: true
+
+  # Persist Grafana database, plugins, and dashboards
+  persistence:
+    enabled: true
+    existingClaim: grafana-nfs-pvc2
+
+  # Optional: keep plugins in PVC (recommended)
+  # [ image ]
+  # Add screenshot: Grafana pod mount showing /var/lib/grafana on NFS.
+
+prometheus:
+  enabled: true
+
+prometheusOperator:
+  enabled: true
+
+prometheusSpec:
+  # Control TSDB growth (Time-series DB)
+  retention: 10d
+  retentionSize: 20GB
+
+  # Prometheus Operator creates a PVC from this template
+  storageSpec:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: ""
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 200Gi
+```
+> [ image ]
+>  Add screenshot: `kubectl get pvc -n monitoring | grep prometheus showing Bound.
+
+```
+Apply your Helm upgrade:
+```
+```
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+  -n monitoring \
+  -f values.yaml
+```
+
+Verify Grafana is mounted on NFS:
+```
+kubectl exec -n monitoring deploy/prometheus-grafana -c grafana -- \
+  sh -c 'mount | grep -i nfs; df -h | grep /var/lib/grafana'
+```
+  [ image ]
+(Screenshot idea: Grafana pod mount showing NFS on /var/lib/grafana)
+
+
+## Step 4 — Prometheus persistence (Prometheus Operator VolumeClaimTemplate)
+
+Prometheus in `kube-prometheus-stack` is managed by Prometheus Operator.
+That means we don’t edit a normal Deployment/StatefulSet directly — we configure the Prometheus CR.
+
+We want:
+
+- Prometheus TSDB stored on NFS at /prometheus
+
+- TSDB growth controlled using:
+
+  - retention: 10d
+
+  - retentionSize: 20GB (so Prometheus does not grow indefinitely)
+
+[ image ]
+(Screenshot idea: Prometheus UI targets page + storage verification commands)
+
+
+### 4.1 Create a Prometheus PV (Static)
+
+Create `prometheus-nfs-pv.yaml`:
+```
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheus-nfs-pv
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  nfs:
+    server: 10.100.25.93
+    path: /nfs/k8s/prometheus
+```
+Apply:
+```
+kubectl apply -f prometheus-nfs-pv.yaml
+```
+Why is `storageClassName: ""` used here?
+Because my Prometheus PVC was created with no StorageClass (empty), so the PV must also have no StorageClass to match and bind.
+
+### 4.2 Configure the Prometheus CR storage
+
+Edit the Prometheus custom resource:
+```
+kubectl edit prometheus prometheus-kube-prometheus-prometheus -n monitoring
+```
+Ensure the following block exists (indentation matters):
+```
+spec:
+  retention: 10d
+  retentionSize: 20GB
+
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: ""
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 200Gi
+```
+[ image ]
+(Screenshot idea: snippet of the Prometheus CR showing retention + storage block)
+
+### 4.3 Important: StatefulSet immutability
+
+The Prometheus Operator creates a StatefulSet behind the scenes.
+If the StatefulSet was created before storage was configured, Kubernetes will not “inject” volume templates into the existing StatefulSet (`volumeClaimTemplates` are immutable).
+
+To force Prometheus Operator to recreate it with the new storage definition:
+```
+kubectl delete sts -n monitoring prometheus-prometheus-kube-prometheus-prometheus
+```
+[ image ]
+(Screenshot idea: deleting the StatefulSet and watching it reappear)
+
+4.4 Validate PVC + PV binding
+
+After operator reconciliation, the Prometheus PVC is auto-created with a long name similar to:
+```
+prometheus-...-db-...-0
+```
+
+Check:
+```
+kubectl get pvc -n monitoring | grep -i prometheus
+kubectl get pv prometheus-nfs-pv
+```
+[ image ]
+(Screenshot idea: Prometheus PVC Bound to prometheus-nfs-pv)
+
+### 4.5 Fix “PVC Pending” due to StorageClass mismatch (real issue encountered)
+
+If you see:
+
+- PVC stuck Pending
+
+- event like: no persistent volumes available for this claim and no storage class is set
+
+It means the PVC has no StorageClass, but your PV has one, or vice-versa.
+
+Solution used here:
+
+- Set both PV and PVC/volumeClaimTemplate to `storageClassName: ""`
+
+[ image ]
+(Screenshot idea: kubectl describe pvc ... showing FailedBinding before fix)
+
+## Step 5 — Verify Prometheus is using NFS
+
+### 5.1 Confirm the pod is writing to /prometheus
+
+Once Prometheus is running, verify the mount and write access:
+```
+kubectl exec -n monitoring prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus -- \
+  sh -c 'id; touch /prometheus/_write_test && ls -l /prometheus/_write_test; df -h | grep /prometheus; mount | grep -i " on /prometheus "'
+```
+Expected output should show:
+
+- `uid=1000 gid=2000`
+
+- NFS mount on `/prometheus`
+
+- file created successfully
+
+[ image ]
+(Screenshot idea: successful write test + NFS mount line)
+
+### 5.2 Resolve “permission denied” crash (real issue encountered)
+
+Prometheus crashed with:
+`open /prometheus/queries.active: permission denied`
+
+Fix was applied on the NFS server:
+```
+sudo chown -R 1000:2000 /nfs/k8s/prometheus
+sudo chmod -R 775 /nfs/k8s/prometheus
+```
+[ image ]
+(Screenshot idea: Prometheus logs showing permission denied before fix and healthy after)
+
+### Notes: “Why does Prometheus show the full NFS size?”
+
+NFS exposes the underlying filesystem size, so inside the pod you may see ~200GB available even if your PV is 200Gi.
+
+The real protection is Prometheus retention policy:
+
+retention: 10d
+
+retentionSize: 20GB
+
+That’s what keeps the TSDB from growing indefinitely.
+
+Troubleshooting (What I hit and how I fixed it)
+1) storage class "nfs-manual" does not exist
+
+Cause: Prometheus Operator validates storageClassName in volumeClaimTemplate.
+Fix: Use `storageClassName: ""` for static PV binding OR create an actual StorageClass object.
+
+[ image ]
+(Screenshot idea: operator logs showing the error)
+
+2) PVC Pending: `no persistent volumes available for this claim and no storage class is set`
+
+Cause: PV and PVC StorageClass mismatch (empty vs named).
+Fix: Make PV storageClassName: "" match the PVC.
+
+3) `spec.persistentVolumeSource is immutable after creation`
+
+Cause: You can’t edit PV NFS path in-place.
+Fix: Create a new PV pointing to the new NFS path, bind it to a new PVC.
+
+4) Prometheus CrashLoop: `permission denied`
+
+Cause: NFS permissions don’t match Prometheus UID/GID.
+Fix: `chown -R 1000:2000 + chmod -R 775` on the NFS server.
+
+Final Verification Checklist
+
+Run these and confirm everything is healthy:
+
+Grafana
+```
+kubectl get pvc -n monitoring | grep grafana
+kubectl exec -n monitoring deploy/prometheus-grafana -c grafana -- \
+  sh -c 'mount | grep -i " on /var/lib/grafana "; df -h | grep /var/lib/grafana'
+```
+[ image ]
+(Screenshot idea: Grafana NFS mount + df output)
+
+Prometheus
+```
+kubectl get pvc -n monitoring | grep -i prometheus
+kubectl exec -n monitoring prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus -- \
+  sh -c 'mount | grep -i " on /prometheus "; df -h | grep /prometheus'
+```
+
+[ image ]
+(Screenshot idea: Prometheus NFS mount + df output)
