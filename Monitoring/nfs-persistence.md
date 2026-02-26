@@ -1,6 +1,6 @@
 # NFS Persistence (Grafana + Prometheus) — Kubernetes Monitoring Stack
 
-This document explains how I added **NFS-backed persistence** to the monitoring stack running on a kubeadm-built Kubernetes cluster (RHEL 9).
+This document explains how NFS-backed persistent storage was implemented for Grafana and Prometheus in the kubeadm-built Kubernetes cluster (RHEL 9)
 
 > [ image ]  
 > *(Screenshot idea: Grafana + Prometheus running in the `monitoring` namespace)*
@@ -18,6 +18,8 @@ With NFS persistence:
 - Grafana uses a persistent directory mounted at `/var/lib/grafana`
 - Prometheus uses a persistent directory mounted at `/prometheus`
 - Storage is moved off worker-node disks and centralized on the NFS server
+- Prometheus time-series data survives pod restarts.
+- Grafana dashboards, users, and configuration are not lost
 
 ---
 
@@ -25,6 +27,7 @@ With NFS persistence:
 
 - Kubernetes: kubeadm cluster (1 master, 2 workers)
 - Namespace: `monitoring`
+- Monitoring stack: kube-prometheus-stack (Helm)
 - NFS Server: `10.100.25.93`
 - Base export: `/nfs/k8s`
 - Separated subpaths:
@@ -41,6 +44,7 @@ With NFS persistence:
 ### On Kubernetes nodes (master + workers)
 - Ensure NFS client utilities are installed (RHEL):
   - `nfs-utils`
+    - `dnf install nfs-utils`
 - Ensure the nodes can reach the NFS server:
   - TCP/UDP 2049 (NFS)
   - If using rpcbind/mountd depending on NFS config, ensure related ports are allowed (most NFSv4 setups mainly need 2049)
