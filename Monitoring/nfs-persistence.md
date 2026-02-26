@@ -505,7 +505,8 @@ Fix: Create a new PV pointing to the new NFS path, bind it to a new PVC.
 Cause: NFS permissions don’t match Prometheus UID/GID.
 Fix: `chown -R 1000:2000 + chmod -R 775` on the NFS server.
 
-Final Verification Checklist
+
+## Final Verification Checklist
 
 Run these and confirm everything is healthy:
 
