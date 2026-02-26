@@ -484,26 +484,26 @@ That’s what keeps the TSDB from growing indefinitely.
 ### Troubleshooting (What I hit and how I fixed it)
 1) storage class "nfs-manual" does not exist
 
-Cause: Prometheus Operator validates storageClassName in volumeClaimTemplate.
-Fix: Use `storageClassName: ""` for static PV binding OR create an actual StorageClass object.
+- Cause: Prometheus Operator validates storageClassName in volumeClaimTemplate.
+- Fix: Use `storageClassName: ""` for static PV binding OR create an actual StorageClass object named nfs-manual.
 
 [ image ]
 (Screenshot idea: operator logs showing the error)
 
 2) PVC Pending: `no persistent volumes available for this claim and no storage class is set`
 
-Cause: PV and PVC StorageClass mismatch (empty vs named).
-Fix: Make PV storageClassName: "" match the PVC.
+- Cause: PV and PVC StorageClass mismatch (empty vs named).
+- Fix: Make PV storageClassName: "" match the PVC.
 
 3) `spec.persistentVolumeSource is immutable after creation`
 
-Cause: You can’t edit PV NFS path in-place.
-Fix: Create a new PV pointing to the new NFS path, bind it to a new PVC.
+- Cause: You can’t edit PV NFS path in-place.
+- Fix: Create a new PV pointing to the new NFS path, bind it to a new PVC.
 
 4) Prometheus CrashLoop: `permission denied`
 
-Cause: NFS permissions don’t match Prometheus UID/GID.
-Fix: `chown -R 1000:2000 + chmod -R 775` on the NFS server.
+- Cause: NFS permissions don’t match Prometheus UID/GID.
+- Fix: `chown -R 1000:2000 + chmod -R 775` on the NFS server.
 
 
 ## Final Verification Checklist
