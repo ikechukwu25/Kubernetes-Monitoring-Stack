@@ -87,16 +87,16 @@ sudo exportfs -v
 ### 3. (Important) Permissions for Prometheus
 Prometheus runs as a non-root user in many kube-prometheus-stack deployments. In my case, it ran as:
 
-uid=1000
+`uid=1000`
 
-gid=2000
+`gid=2000`
 
 Prometheus crashed when it couldn’t write to /prometheus with:
 ```
 permission denied while creating /prometheus/queries.active.
 ```
 
-Fix on NFS server:
+Fix on the NFS server:
 
 ```
 sudo chown -R 1000:2000 /nfs/k8s/prometheus
@@ -125,6 +125,38 @@ For this project, I used static PVs (manual PV definition pointing to NFS paths)
 
 This is simple, predictable, and perfect for a lab / on-prem environment.
 
+
+---
+
+## StorageClass Design
+
+For consistency and maintainability, both Grafana and Prometheus use the same static StorageClass:
+
+`nfs-manual`
+
+This StorageClass enables static NFS-backed PersistentVolumes without dynamic provisioning.
+
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-manual
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+```
+
+[ image ]
+(Screenshot: kubectl get storageclass showing nfs-manual)
+
+This ensures:
+
+- Controlled static binding
+
+- Predictable storage allocation
+
+- Clean separation of workloads
+
+- Enterprise-friendly architecture
 
 ## Step 3 — Grafana persistence (PV + PVC)
 
@@ -266,7 +298,7 @@ That means we don’t edit a normal Deployment/StatefulSet directly — we confi
 
 We want:
 
-- Prometheus TSDB stored on NFS at /prometheus
+- Prometheus TSDB stored on NFS at `/prometheus`
 
 - TSDB growth controlled using:
 
@@ -292,7 +324,8 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
+  storageClassName: nfs-manual
+  volumeMode: Filesystem
   nfs:
     server: 10.100.25.93
     path: /nfs/k8s/prometheus
@@ -301,8 +334,6 @@ Apply:
 ```
 kubectl apply -f prometheus-nfs-pv.yaml
 ```
-Why is `storageClassName: ""` used here?
-Because my Prometheus PVC was created with no StorageClass (empty), so the PV must also have no StorageClass to match and bind.
 
 ### 4.2 Configure the Prometheus CR storage
 
@@ -319,7 +350,7 @@ spec:
   storage:
     volumeClaimTemplate:
       spec:
-        storageClassName: ""
+        storageClassName: nfs-manual
         accessModes:
         - ReadWriteOnce
         resources:
@@ -329,65 +360,85 @@ spec:
 [ image ]
 (Screenshot idea: snippet of the Prometheus CR showing retention + storage block)
 
-### 4.3 Important: StatefulSet immutability
+### 4.3 Important: StatefulSet Immutability
 
-The Prometheus Operator creates a StatefulSet behind the scenes.
-If the StatefulSet was created before storage was configured, Kubernetes will not “inject” volume templates into the existing StatefulSet (`volumeClaimTemplates` are immutable).
+The Prometheus Operator creates a StatefulSet to manage the Prometheus pod.
 
-To force Prometheus Operator to recreate it with the new storage definition:
+`volumeClaimTemplates` inside a StatefulSet are immutable after creation.  
+If storage configuration is added or modified after initial deployment, the existing StatefulSet must be recreated.
+
+To trigger reconciliation with the updated storage configuration:
 ```
 kubectl delete sts -n monitoring prometheus-prometheus-kube-prometheus-prometheus
 ```
-[ image ]
-(Screenshot idea: deleting the StatefulSet and watching it reappear)
 
-4.4 Validate PVC + PV binding
+The Prometheus Operator will automatically recreate it using the updated `volumeClaimTemplate`.
 
-After operator reconciliation, the Prometheus PVC is auto-created with a long name similar to:
-```
-prometheus-...-db-...-0
-```
+> [ image ]  
+> *(Screenshot idea: deleting the StatefulSet and watching it reappear)*
 
-Check:
+---
+
+### 4.4 Validate Prometheus PVC and PV Binding
+
+After reconciliation, Prometheus automatically creates its PVC using the defined `volumeClaimTemplate`.
+
+The PVC name will follow this pattern:
+
+prometheus-prometheus-kube-prometheus-prometheus-db-prometheus-prometheus-kube-prometheus-prometheus-0
+
+
+Validate binding:
 ```
 kubectl get pvc -n monitoring | grep -i prometheus
 kubectl get pv prometheus-nfs-pv
 ```
-[ image ]
-(Screenshot idea: Prometheus PVC Bound to prometheus-nfs-pv)
 
-### 4.5 Fix “PVC Pending” due to StorageClass mismatch (real issue encountered)
+Expected result:
+- PVC status: `Bound`
+- PV status: `Bound`
+- StorageClass: `nfs-manual`
 
-If you see:
+> [ image ]  
+> *(Screenshot idea: Prometheus PVC Bound to prometheus-nfs-pv with nfs-manual)*
 
-- PVC stuck Pending
+---
 
-- event like: no persistent volumes available for this claim and no storage class is set
+### 4.5 Validate NFS Mount Inside the Pod
 
-It means the PVC has no StorageClass, but your PV has one, or vice-versa.
+Confirm Prometheus is using the NFS-backed volume:
+```
+kubectl exec -n monitoring prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus --
+sh -c 'mount | grep -i " on /prometheus "; df -h | grep /prometheus'
+```
 
-Solution used here:
+Expected output should show:
+```
+10.100.25.93:/nfs/k8s/prometheus on /prometheus type nfs4
+```
 
-- Set both PV and PVC/volumeClaimTemplate to `storageClassName: ""`
+> [ image ]  
+> *(Screenshot idea: mount output showing NFS path)*
 
-[ image ]
-(Screenshot idea: kubectl describe pvc ... showing FailedBinding before fix)
+---
+
+
 
 ## Step 5 — Verify Prometheus is using NFS
 
 ### 5.1 Confirm the pod is writing to /prometheus
 
 Once Prometheus is running, verify the mount and write access:
+
 ```
 kubectl exec -n monitoring prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus -- \
   sh -c 'id; touch /prometheus/_write_test && ls -l /prometheus/_write_test; df -h | grep /prometheus; mount | grep -i " on /prometheus "'
 ```
+
 Expected output should show:
 
 - `uid=1000 gid=2000`
-
 - NFS mount on `/prometheus`
-
 - file created successfully
 
 [ image ]
@@ -418,7 +469,19 @@ retentionSize: 20GB
 
 That’s what keeps the TSDB from growing indefinitely.
 
-Troubleshooting (What I hit and how I fixed it)
+## Final Storage Architecture
+
+| Component   | NFS Path                | StorageClass | Access Mode |
+|------------|--------------------------|--------------|-------------|
+| Grafana    | /nfs/k8s/grafana         | nfs-manual  | RWX |
+| Prometheus | /nfs/k8s/prometheus      | nfs-manual  | RWO |
+
+> [ image ]  
+> *(Screenshot: `kubectl get pv` + `kubectl get pvc -n monitoring` showing both Bound with nfs-manual)*
+
+ 
+
+### Troubleshooting (What I hit and how I fixed it)
 1) storage class "nfs-manual" does not exist
 
 Cause: Prometheus Operator validates storageClassName in volumeClaimTemplate.
