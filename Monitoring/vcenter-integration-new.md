@@ -1,18 +1,10 @@
 # VMware vCenter Integration with Kubernetes Monitoring Stack
 
-> **Document Version:** 1.1
-> **Project:** Kubernetes Monitoring Stack
-> **Repository:** https://github.com/ikechukwu25/Kubernetes-Monitoring-Stack
-
----
-
-# VMware vCenter Integration with Kubernetes Monitoring Stack
-
 ## Overview
 
 This document describes the **complete integration of VMware vCenter into the Kubernetes Monitoring Stack** deployed in this project.
 
-The goal of this integration is to enable Prometheus and Grafana to collect and visualize metrics from VMware infrastructure such as:
+The goal of this integration is to enable Prometheus and Grafana to collect and visualize metrics from VMware infrastructure, such as:
 
 * ESXi Host CPU utilization
 * ESXi Host memory consumption
@@ -195,13 +187,13 @@ docs/images/vmware/vcenter-permissions.png
 
 To isolate VMware monitoring resources, a dedicated namespace is created.
 
-```bash
+```
 kubectl create namespace vmware-monitoring
 ```
 
 Verify:
 
-```bash
+```
 kubectl get namespaces
 ```
 
@@ -227,7 +219,7 @@ Credentials must never be stored directly in Kubernetes deployment files.
 
 A Kubernetes secret is used.
 
-```bash
+```
 kubectl -n vmware-monitoring create secret generic vmware-exporter-secret \
   --from-literal=VSPHERE_USER='svc_vmware_exporter@vsphere.local' \
   --from-literal=VSPHERE_PASSWORD='YourPassword'
@@ -235,7 +227,7 @@ kubectl -n vmware-monitoring create secret generic vmware-exporter-secret \
 
 Verify secret:
 
-```bash
+```
 kubectl get secrets -n vmware-monitoring
 ```
 
@@ -261,7 +253,7 @@ vmware-exporter.yaml
 
 ### Deployment Configuration
 
-```yaml
+```
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -307,13 +299,13 @@ spec:
 
 Apply deployment:
 
-```bash
+```
 kubectl apply -f vmware-exporter.yaml
 ```
 
 Verify:
 
-```bash
+```
 kubectl get pods -n vmware-monitoring
 ```
 
@@ -331,13 +323,13 @@ docs/images/kubernetes/vmware-exporter-pod.png
 
 Test that exporter is serving metrics.
 
-```bash
+```
 kubectl port-forward svc/vmware-exporter -n vmware-monitoring 9272:9272
 ```
 
 Test endpoint:
 
-```bash
+```
 curl http://localhost:9272/metrics
 ```
 
@@ -369,7 +361,7 @@ Create:
 vmware-servicemonitor.yaml
 ```
 
-```yaml
+```
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -392,7 +384,7 @@ spec:
 
 Apply:
 
-```bash
+```
 kubectl apply -f vmware-servicemonitor.yaml
 ```
 
@@ -410,7 +402,7 @@ docs/images/prometheus/servicemonitor-created.png
 
 Forward Prometheus service:
 
-```bash
+```
 kubectl port-forward svc/prometheus-kube-prometheus-prometheus -n monitoring 9090:9090
 ```
 
@@ -540,7 +532,7 @@ release: prometheus
 
 # Final Result
 
-After completing this integration, the Kubernetes monitoring stack provides full observability of VMware infrastructure including:
+After completing this integration, the Kubernetes monitoring stack provides full observability of VMware infrastructure, including:
 
 * Host resource utilization
 * Datastore capacity monitoring
@@ -551,14 +543,4 @@ This enables proactive monitoring, capacity planning, and performance troublesho
 
 ---
 
-# Changes Made From Original Documentation
 
-This version adds the following improvements:
-
-1. Detailed explanations for each integration step
-2. Infrastructure architecture diagrams
-3. Kubernetes validation commands
-4. Screenshot placeholders for proof of activity
-5. Clear explanation of each metric
-6. Troubleshooting section
-7. Documentation structure suitable for enterprise repositories
