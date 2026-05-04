@@ -113,30 +113,22 @@ Example configuration:
 
 | Field       | Value                      |
 | ----------- | -------------------------- |
-| Username    | svc_vmware_exporter        |
+| Username    | svc_grafana_vcenter       |
 | Password    | StrongPassword             |
 | Description | Monitoring Service Account |
 
 Resulting login account:
 
 ```
-svc_vmware_exporter@vsphere.local
+svc_grafana_vcenter@vsphere.local
 ```
 
 ---
 
-### 📸 Screenshot Evidence (NEW)
-
-Insert screenshot of user creation.
+<img width="903" height="595" alt="image" src="https://github.com/user-attachments/assets/a4e1394e-9a5a-44a1-8fd9-f6b65e0b4d5c" />
 
 ```
-docs/images/vmware/vcenter-user-created.png
-```
-
-Example placeholder:
-
-```
-![vCenter Service Account Creation](../images/vmware/vcenter-user-created.png)
+vCenter Service Account Creation
 ```
 
 ---
@@ -175,10 +167,10 @@ This allows the exporter to access:
 
 ---
 
-### 📸 Screenshot Evidence (NEW)
+<img width="405" height="224" alt="image" src="https://github.com/user-attachments/assets/0049b5bd-d10a-4e50-9ee0-4b0be21ddb49" />
 
 ```
-docs/images/vmware/vcenter-permissions.png
+Exporter permissions
 ```
 
 ---
