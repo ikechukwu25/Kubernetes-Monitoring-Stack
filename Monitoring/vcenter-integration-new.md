@@ -214,10 +214,10 @@ A Kubernetes secret is used.
 
 ```
 kubectl -n vmware-monitoring create secret generic vmware-exporter-secret \
-  --from-literal=VSPHERE_USER='svc_vmware_exporter@vsphere.local' \
+  --from-literal=VSPHERE_USER='svc_grafana_vcenter@vsphere.local' \
   --from-literal=VSPHERE_PASSWORD='YourPassword'
 ```
-
+  
 Verify secret:
 
 ```
@@ -312,7 +312,80 @@ VMware Exporter Pod
 
 ---
 
-# 5. Validate Exporter Metrics
+# 5. Create Kubernetes Service for VMware Exporter
+
+A Kubernetes **Service** is required to expose the VMware Exporter pod internally within the cluster.
+
+This allows:
+- Prometheus to discover and scrape the exporter endpoint
+- The ServiceMonitor to route traffic to the correct pod
+
+> Without this Service, the ServiceMonitor has nothing to select, and Prometheus will never scrape the exporter.
+
+---
+
+## Service Configuration
+
+Create the file:
+```
+vi vmware-exporter-service.yaml
+```
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmware-exporter
+  namespace: vmware-monitoring
+  labels:
+    app: vmware-exporter
+spec:
+  type: ClusterIP
+  selector:
+    app: vmware-exporter
+  ports:
+    - name: http
+      port: 9272
+      targetPort: 9272
+      protocol: TCP
+```
+
+Apply the Service:
+```
+kubectl apply -f vmware-exporter-service.yaml
+```
+
+Verify the Service was created:
+```
+kubectl get svc -n vmware-monitoring
+```
+
+Expected output:
+```
+NAME               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+vmware-exporter    ClusterIP   10.96.x.x       <none>        9272/TCP   10s
+```
+
+<img width="601" height="61" alt="image" src="https://github.com/user-attachments/assets/f60cc5c4-aff5-4584-a9db-8c2de85572e7" />
+</br>
+
+Verify the Service is routing to the correct pod:
+```
+kubectl describe svc vmware-exporter -n vmware-monitoring
+```
+
+Confirm that the **Endpoints** field shows an IP — if it is empty, the `selector` label does not match the pod labels.
+
+
+</br>
+
+<img width="686" height="312" alt="image" src="https://github.com/user-attachments/assets/97393303-516a-462c-b1e8-30eadd595f89" />
+
+</br>
+---
+
+
+
+# 6. Validate Exporter Metrics
 
 ### Verify exporter is being scraped successfully by Prometheus
 
@@ -325,7 +398,7 @@ curl -s http://localhost:9090/api/v1/targets \
 <img width="737" height="113" alt="image" src="https://github.com/user-attachments/assets/d6404aab-8bf4-4258-b959-10ebd36fe46c" />
 </br>
 </br>
-Validate VMware metrics exist in Prometheus
+Validate that VMware metrics exist in Prometheus
 
 ```
 curl -s "http://localhost:9090/api/v1/query?query=vmware_vm_power_state" | jq
@@ -366,7 +439,7 @@ A successful scrape configuration will show:
 <img width="969" height="278" alt="image" src="https://github.com/user-attachments/assets/4129df9b-f71a-415e-8d94-749923b68edb" />
 
 
-# 6. Configure Prometheus Scraping
+# 7. Configure Prometheus Scraping
 
 Prometheus Operator uses **ServiceMonitor objects** to automatically discover and scrape metrics from Kubernetes workloads.
 
@@ -459,7 +532,7 @@ Service Monitors running under the monitoring namespace
 
 ---
 
-# 7. Verify Prometheus Target
+# 8. Verify Prometheus Target
 
 Forward Prometheus service:
 
