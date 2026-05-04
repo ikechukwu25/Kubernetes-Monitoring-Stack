@@ -161,7 +161,7 @@ Assign the following:
 
 | Setting               | Value                                                                         |
 | --------------------- | ----------------------------------------------------------------------------- |
-| User                  | [svc_vmware_exporter@vsphere.local](mailto:svc_vmware_exporter@vsphere.local) |
+| User                  | [svc_grafana_vcenter@vsphere.local](mailto:svc_grafana_vcenter@vsphere.local) |
 | Role                  | Read-Only                                                                     |
 | Propagate to Children | Enabled                                                                       |
 
