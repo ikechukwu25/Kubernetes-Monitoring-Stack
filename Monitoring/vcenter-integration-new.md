@@ -197,7 +197,8 @@ vmware-monitoring   Active
 
 ---
 
-### 📸 Screenshot Evidence (NEW)
+<img width="469" height="159" alt="image" src="https://github.com/user-attachments/assets/96c65d74-7649-4728-a394-9da87ea45458" />
+
 
 ```
 docs/images/kubernetes/vmware-namespace.png
@@ -225,10 +226,10 @@ kubectl get secrets -n vmware-monitoring
 
 ---
 
-### 📸 Screenshot Evidence (NEW)
+<img width="466" height="55" alt="image" src="https://github.com/user-attachments/assets/da82ba17-ca3e-4d4b-b7b9-5121db64ab18" />
 
 ```
-docs/images/kubernetes/vmware-secret.png
+VMware Secret
 ```
 
 ---
@@ -303,54 +304,122 @@ kubectl get pods -n vmware-monitoring
 
 ---
 
-### 📸 Screenshot Evidence (NEW)
+<img width="587" height="56" alt="image" src="https://github.com/user-attachments/assets/2d06b2b8-917a-406a-a581-f6776de3b997" />
 
 ```
-docs/images/kubernetes/vmware-exporter-pod.png
+VMware Exporter Pod
 ```
 
 ---
 
 # 5. Validate Exporter Metrics
 
-Test that exporter is serving metrics.
+### Verify exporter is being scraped successfully by Prometheus
+
+We will validate metrics using the Prometheus API.
 
 ```
-kubectl port-forward svc/vmware-exporter -n vmware-monitoring 9272:9272
+curl -s http://localhost:9090/api/v1/targets \
+| jq '.data.activeTargets[] | select(.labels.job=="vmware-exporter") | {scrapeUrl, health}'
 ```
-
-Test endpoint:
-
-```
-curl http://localhost:9272/metrics
-```
-
-Expected metrics example:
+<img width="737" height="113" alt="image" src="https://github.com/user-attachments/assets/d6404aab-8bf4-4258-b959-10ebd36fe46c" />
+</br>
+</br>
+Validate VMware metrics exist in Prometheus
 
 ```
-vmware_host_cpu_usage_average
-vmware_vm_power_state
-vmware_datastore_capacity_size
+curl -s "http://localhost:9090/api/v1/query?query=vmware_vm_power_state" | jq
 ```
+
+<img width="901" height="549" alt="image" src="https://github.com/user-attachments/assets/a8d6fe3c-049d-445e-b051-bba06e7d218b" />
+</br>
+</br>
+Confirm metric count
+
+```
+curl -s "http://localhost:9090/api/v1/query?query=count(vmware_vm_power_state)"
+```
+
+<img width="865" height="46" alt="image" src="https://github.com/user-attachments/assets/b18313c8-86f9-480e-9738-8f6703266a35" />
+
 
 ---
 
-### 📸 Screenshot Evidence (NEW)
+
+### Validate Prometheus Scrape Targets
+
+This step confirms that Prometheus is actively discovering and scraping the VMware exporter via the ServiceMonitor configuration.
+
+Check Active Scrape Targets
+
+- Run the following command against the Prometheus API:
 
 ```
-docs/images/prometheus/exporter-metrics.png
+curl -s http://localhost:9090/api/v1/targets \
+| jq '.data.activeTargets[] | select(.labels.job | test("vmware"))'
 ```
 
----
+- Expected Output (Healthy Target)
+
+A successful scrape configuration will show:
+
+<img width="969" height="278" alt="image" src="https://github.com/user-attachments/assets/4129df9b-f71a-415e-8d94-749923b68edb" />
+
 
 # 6. Configure Prometheus Scraping
 
-Prometheus Operator uses **ServiceMonitor objects**.
+Prometheus Operator uses **ServiceMonitor objects** to automatically discover and scrape metrics from Kubernetes workloads.
+
+A ServiceMonitor is a Kubernetes Custom Resource Definition (CRD) that tells Prometheus:
+
+- Which Services to scrape
+- Which namespace to look in
+- Which endpoint/path to use
+- How frequently to scrape metrics
+
+This removes the need for manual Prometheus configuration files and enables fully declarative monitoring.
+
+### Big Picture
+
+This is the core observability flow in Kubernetes:
+
+```
++-------------------+
+| ServiceMonitor   |
++-------------------+
+         |
+         | 
+         v
++----------------------+
+| Prometheus Operator  |
++----------------------+
+         |
+         v
++--------------------------------------------+
+| Generates Prometheus scrape configuration  |
++--------------------------------------------+
+         |
+         v
++----------------------+
+| Prometheus server   |
++----------------------+
+         |
+         v
++---------------------------------------+
+| Kubernetes Service (vmware-exporter)  |
++---------------------------------------+
+         |
+         v
++---------------------------------------+
+| Exporter Pod (/metrics endpoint)  |
++---------------------------------------+
+
+```
 
 Create:
 
 ```
-vmware-servicemonitor.yaml
+vi vmware-servicemonitor.yaml
 ```
 
 ```
@@ -382,10 +451,10 @@ kubectl apply -f vmware-servicemonitor.yaml
 
 ---
 
-### 📸 Screenshot Evidence (NEW)
+<img width="554" height="293" alt="image" src="https://github.com/user-attachments/assets/b4b45894-2ed6-4bb5-b3fd-e3d00cb11af6" />
 
 ```
-docs/images/prometheus/servicemonitor-created.png
+Service Monitors running under the monitoring namespace
 ```
 
 ---
@@ -404,19 +473,25 @@ Open:
 http://localhost:9090/targets
 ```
 
-Verify VMware exporter target shows:
+Verify that VMware exporter target shows via URL:
 
 ```
 Status: UP
 ```
 
----
-
-### 📸 Screenshot Evidence (NEW)
-
+API verification (CLI verification)
 ```
-docs/images/prometheus/prometheus-target-up.png
+curl -s http://localhost:9090/api/v1/targets \
+| jq '.data.activeTargets[] | select(.labels.job=="vmware-exporter") | {scrapeUrl, health}'
 ```
+
+Expected Output
+</br>
+
+<img width="760" height="117" alt="image" src="https://github.com/user-attachments/assets/29c19aab-815c-4e33-b81d-0705801e44f4" />
+
+</br>
+</br>
 
 ---
 
@@ -453,19 +528,23 @@ vmware_datastore_accessible
 
 # 9. Grafana Dashboards
 
-## Cluster CPU Utilization
+## Total Virtual Machines
 
 ```
-avg(vmware_host_cpu_usage_average) / 100
+count(vmware_vm_power_state)
 ```
+
+<img width="292" height="108" alt="image" src="https://github.com/user-attachments/assets/eab96293-6d1d-4d16-a7a1-5d2d7396b944" />
 
 ---
 
-## Cluster Memory Utilization
+## Powered On VMs
 
 ```
-avg(vmware_host_memory_usage / vmware_host_memory_max) * 100
+count(vmware_vm_power_state == 1)
 ```
+
+<img width="291" height="106" alt="image" src="https://github.com/user-attachments/assets/7105f077-1cbd-411c-b2ca-781f807136cc" />
 
 ---
 
@@ -480,13 +559,7 @@ sum(vmware_datastore_freespace_size)
 / sum(vmware_datastore_capacity_size) * 100
 ```
 
----
-
-### 📸 Screenshot Evidence (NEW)
-
-```
-docs/images/grafana/vcenter-dashboard.png
-```
+<img width="587" height="298" alt="image" src="https://github.com/user-attachments/assets/08350bee-2e50-4f3b-b67f-c81b7d02953c" />
 
 ---
 
